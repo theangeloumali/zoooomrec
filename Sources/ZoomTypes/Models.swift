@@ -10,6 +10,10 @@ public struct InputEvent: Codable, Equatable, Sendable {
         case rightClick = "right_click"
         case scroll
         case keyDown = "key_down"
+        /// Live hotkey zoom markers captured during recording. `zoomIn` opens a
+        /// manual zoom at the cursor position; `zoomOut` closes the active zoom.
+        case zoomIn = "zoom_in"
+        case zoomOut = "zoom_out"
     }
 
     public var t: Double
@@ -64,6 +68,9 @@ public struct ProjectManifest: Codable, Equatable, Sendable {
     public var durationSeconds: Double
     /// Explicit zoom edits. `nil` means "auto-generate from the event stream".
     public var segments: [ZoomSegment]?
+    /// Zoom magnification chosen at record time (applied to hotkey/auto zooms at
+    /// render). `nil` means the renderer uses its own default. Additive/optional.
+    public var zoomScale: Double?
 
     public init(
         version: Int = 1,
@@ -73,7 +80,8 @@ public struct ProjectManifest: Codable, Equatable, Sendable {
         pixelHeight: Int,
         fps: Double,
         durationSeconds: Double,
-        segments: [ZoomSegment]? = nil
+        segments: [ZoomSegment]? = nil,
+        zoomScale: Double? = nil
     ) {
         self.version = version
         self.videoFile = videoFile
@@ -83,6 +91,7 @@ public struct ProjectManifest: Codable, Equatable, Sendable {
         self.fps = fps
         self.durationSeconds = durationSeconds
         self.segments = segments
+        self.zoomScale = zoomScale
     }
 }
 
@@ -91,4 +100,10 @@ public enum ZoooomrecBundle {
     public static let videoName = "recording.mp4"
     public static let eventsName = "events.jsonl"
     public static let manifestName = "project.json"
+}
+
+/// Shared zoom defaults so the record-time default and the render fallback stay in lockstep.
+public enum ZoomDefaults {
+    /// Default zoom magnification (2× — legible without disorienting).
+    public static let scale = 2.0
 }

@@ -18,11 +18,15 @@ private func eventTapCallback(
     recorder.recordClick(.leftClick, at: event.location)
   case .rightMouseDown:
     recorder.recordClick(.rightClick, at: event.location)
+  case .keyDown:
+    recorder.handleKeyDown(event)
   case .tapDisabledByTimeout, .tapDisabledByUserInput:
     recorder.reEnableTap()
   default:
     break
   }
+  // Listen-only tap: always pass every event through unmodified so the user's
+  // other apps still receive the keystrokes/clicks.
   return Unmanaged.passUnretained(event)
 }
 
@@ -43,6 +47,10 @@ final class EventRecorder {
     let x: Double
     let y: Double
   }
+
+  /// Invoked (on the tap's runloop thread) when the stop hotkey ⌃⌥S is pressed.
+  /// Simple stored closure — the owner races this against the duration timer.
+  var onStop: (() -> Void)?
 
   private let scaleFactor: Double
   private let lock = NSLock()
@@ -99,6 +107,30 @@ final class EventRecorder {
     append(kind, at: location)
   }
 
+  /// Invoked from the C tap callback for every key-down. Only ⌃⌥-chorded ANSI
+  /// Z / X / S carry meaning; everything else passes through untouched.
+  func handleKeyDown(_ event: CGEvent) {
+    let flags = event.flags
+    guard flags.contains(.maskControl), flags.contains(.maskAlternate) else { return }
+    switch event.getIntegerValueField(.keyboardEventKeycode) {
+    case 6:  // ANSI Z → open a manual zoom at the cursor
+      recordHotkeyZoom(.zoomIn)
+    case 7:  // ANSI X → close the active zoom
+      recordHotkeyZoom(.zoomOut)
+    case 1:  // ANSI S → stop the recording (no event appended)
+      onStop?()
+    default:
+      break
+    }
+  }
+
+  /// Appends a live zoom marker at the current cursor position, using the same
+  /// capture-space (scaleFactor) conversion applied to clicks.
+  private func recordHotkeyZoom(_ kind: InputEvent.Kind) {
+    let location = CGEvent(source: nil)?.location ?? .zero
+    append(kind, at: location)
+  }
+
   /// Re-enables the tap after the system disables it (timeout / user input).
   func reEnableTap() {
     guard let eventTap else { return }
@@ -124,6 +156,7 @@ final class EventRecorder {
     let mask =
       (CGEventMask(1) << CGEventType.leftMouseDown.rawValue)
       | (CGEventMask(1) << CGEventType.rightMouseDown.rawValue)
+      | (CGEventMask(1) << CGEventType.keyDown.rawValue)
     let selfPointer = Unmanaged.passUnretained(self).toOpaque()
 
     guard
@@ -138,7 +171,7 @@ final class EventRecorder {
     else {
       FileHandle.standardError.write(
         Data(
-          "warning: could not create input event tap (grant Input Monitoring under System Settings → Privacy & Security to record clicks); continuing with cursor moves only\n"
+          "warning: could not create input event tap (grant Accessibility under System Settings → Privacy & Security so clicks and ⌃⌥ hotkey zoom markers are captured); continuing with cursor moves only\n"
             .utf8
         ))
       return

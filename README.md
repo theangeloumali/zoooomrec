@@ -29,17 +29,42 @@ swift build -c release
 
 ## Usage
 
-Record your screen to a `.zoooomrec` bundle:
+The fast path — record until you press the stop hotkey, then auto-render:
+
+```sh
+.build/release/zoooomrec record --output demo.zoooomrec
+```
+
+With no `--duration`, this records until you press `⌃⌥S` (or Ctrl+C), then automatically renders the finished zoomed video to a sibling `demo.mp4` — no separate edit or render step.
+
+For scripted or fixed-duration captures, record for a set time and render explicitly:
 
 ```sh
 .build/release/zoooomrec record --output demo.zoooomrec --duration 10
-```
-
-Render a zoomed demo MP4 from a recording:
-
-```sh
 .build/release/zoooomrec render demo.zoooomrec --output demo-zoomed.mp4
 ```
+
+### `record` flags
+
+- `--output <path>` — destination `.zoooomrec` bundle (required).
+- `--duration <sec>` — record for a fixed number of seconds. Omit to record until the stop hotkey.
+- `--zoom-scale <x>` — zoom magnification (default `2.0`).
+- `--no-render` — skip the automatic render and leave just the `.zoooomrec` bundle.
+- `--open` — open the rendered MP4 when done.
+
+### Live hotkey zoom
+
+While recording, drive the zoom live from the keyboard:
+
+| Hotkey | Action |
+| --- | --- |
+| `⌃⌥Z` (Control-Option-Z) | Zoom in at the cursor (press again to move the zoom to a new spot) |
+| `⌃⌥X` (Control-Option-X) | Zoom out |
+| `⌃⌥S` (Control-Option-S) | Stop recording |
+
+Hotkeys require **Accessibility** permission (**System Settings → Privacy & Security → Accessibility**) in addition to Screen Recording. Without it, recording still works, but hotkeys and click-based auto-zoom fall back to cursor-follow only.
+
+Zoom now feels smoother — a softer spring with a ~1s glide — and it follows the cursor while zoomed.
 
 ### Permissions
 

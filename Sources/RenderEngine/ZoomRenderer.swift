@@ -29,13 +29,25 @@ public struct ZoomRenderer {
         let pixelHeight = Int(abs(naturalSize.height).rounded())
         let fps = bundle.manifest.fps
 
-        let segments = bundle.manifest.segments ?? AutoZoom.segments(
-            from: bundle.events,
-            width: Double(bundle.manifest.pixelWidth),
-            height: Double(bundle.manifest.pixelHeight)
+        let scale = bundle.manifest.zoomScale ?? ZoomDefaults.scale
+        let hasManualMarkers = bundle.events.contains { $0.kind == .zoomIn }
+        let segments = bundle.manifest.segments ?? (
+            hasManualMarkers
+                ? ManualZoom.segments(
+                    from: bundle.events,
+                    width: Double(bundle.manifest.pixelWidth),
+                    height: Double(bundle.manifest.pixelHeight),
+                    scale: scale,
+                    duration: duration.seconds)
+                : AutoZoom.segments(
+                    from: bundle.events,
+                    width: Double(bundle.manifest.pixelWidth),
+                    height: Double(bundle.manifest.pixelHeight))
         )
+        // Cursor-follow overload: both manual and auto zooms pan toward the live cursor.
         let keyframes = ZoomTimeline.cropKeyframes(
             segments: segments,
+            events: bundle.events,
             width: Double(pixelWidth),
             height: Double(pixelHeight),
             fps: fps,

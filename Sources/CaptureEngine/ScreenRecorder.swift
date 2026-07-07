@@ -19,9 +19,68 @@ public final class ScreenRecorder {
   /// Events written by the most recent `record(...)` call (for CLI reporting).
   public private(set) var lastEventCount: Int = 0
 
+  // Stop-signal plumbing. `requestStop()`, the duration timer, and the stop
+  // hotkey all funnel through `signalStop()`, which resumes the wait
+  // continuation at most once. `stopLock` guards every access so the signal is
+  // safe to fire from ANY thread (SIGINT queue, timer queue, tap runloop).
+  private let stopLock = NSLock()
+  private var stopContinuation: CheckedContinuation<Void, Never>?
+  private var stopRequested = false
+  private let stopTimerQueue = DispatchQueue(label: "zoooomrec.capture.stop")
+
   public init() {}
 
-  public func record(durationSeconds: Double, to bundleURL: URL) async throws -> ProjectManifest {
+  /// Ends the current recording early. Idempotent and thread-safe — safe to call
+  /// from a signal handler, a timer, or the event-tap thread.
+  public func requestStop() {
+    signalStop()
+  }
+
+  /// Clears stop state at the start of a recording so the instance is reusable.
+  private func resetStopState() {
+    stopLock.lock()
+    stopRequested = false
+    stopContinuation = nil
+    stopLock.unlock()
+  }
+
+  /// Resumes the wait continuation exactly once, regardless of how many stop
+  /// triggers fire or in what order they race the continuation being parked.
+  private func signalStop() {
+    stopLock.lock()
+    if stopRequested {
+      stopLock.unlock()
+      return
+    }
+    stopRequested = true
+    let continuation = stopContinuation
+    stopContinuation = nil
+    stopLock.unlock()
+    continuation?.resume()
+  }
+
+  /// Parks until the first stop trigger fires. If a trigger already fired before
+  /// we park, resumes immediately so no signal is ever lost.
+  private func waitForStop() async {
+    await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+      stopLock.lock()
+      if stopRequested {
+        stopLock.unlock()
+        continuation.resume()
+      } else {
+        stopContinuation = continuation
+        stopLock.unlock()
+      }
+    }
+  }
+
+  public func record(
+    durationSeconds: Double?,
+    zoomScale: Double,
+    to bundleURL: URL
+  ) async throws -> ProjectManifest {
+    resetStopState()
+
     let fileManager = FileManager.default
     try fileManager.createDirectory(at: bundleURL, withIntermediateDirectories: true)
 
@@ -53,9 +112,25 @@ public final class ScreenRecorder {
     try stream.addStreamOutput(handler, type: .screen, sampleHandlerQueue: sampleQueue)
 
     let eventRecorder = EventRecorder(scaleFactor: scaleFactor)
+    eventRecorder.onStop = { [weak self] in self?.signalStop() }  // stop hotkey ⌃⌥S
     eventRecorder.start()
     try await stream.startCapture()
-    try await Task.sleep(nanoseconds: UInt64(durationSeconds * 1_000_000_000))
+
+    // Race three first-wins stop triggers: (a) the optional duration timer,
+    // (b) the stop hotkey (via onStop), (c) an external requestStop() call.
+    let durationTimer: DispatchSourceTimer?
+    if let durationSeconds {
+      let timer = DispatchSource.makeTimerSource(queue: stopTimerQueue)
+      timer.schedule(deadline: .now() + durationSeconds)
+      timer.setEventHandler { [weak self] in self?.signalStop() }
+      timer.resume()
+      durationTimer = timer
+    } else {
+      durationTimer = nil
+    }
+    await waitForStop()
+    durationTimer?.cancel()
+
     try await stream.stopCapture()
     sampleQueue.sync {}  // drain any in-flight sample blocks before reading counts
 
@@ -84,7 +159,8 @@ public final class ScreenRecorder {
       pixelHeight: pixelHeight,
       fps: 60,
       durationSeconds: actualDuration,
-      segments: nil
+      segments: nil,
+      zoomScale: zoomScale
     )
     try encodeManifest(manifest).write(to: manifestURL)
 
