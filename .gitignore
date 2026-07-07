@@ -1,0 +1,8 @@
+.build/
+.swiftpm/
+xcuserdata/
+.DS_Store
+*.zoooomrec/
+recordings/
+docs/plans/*.html
+.claude/.worktree/
