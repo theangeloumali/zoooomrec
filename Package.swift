@@ -17,6 +17,7 @@ let package = Package(
             name: "ZoooomrecCLI",
             dependencies: ["ZoomTypes", "ZoomEngine", "CaptureEngine", "RenderEngine"]
         ),
+        .executableTarget(name: "E2EDemo", dependencies: ["ZoomTypes"]),
         .testTarget(name: "ZoomEngineTests", dependencies: ["ZoomEngine", "ZoomTypes"]),
         .testTarget(name: "RenderEngineTests", dependencies: ["RenderEngine", "ZoomEngine", "ZoomTypes"]),
     ]
