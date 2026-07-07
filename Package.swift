@@ -13,9 +13,13 @@ let package = Package(
         .target(name: "ZoomEngine", dependencies: ["ZoomTypes"]),
         .target(name: "CaptureEngine", dependencies: ["ZoomTypes"]),
         .target(name: "RenderEngine", dependencies: ["ZoomTypes", "ZoomEngine"]),
+        .target(
+            name: "ZoooomrecApp",
+            dependencies: ["ZoomTypes", "CaptureEngine", "RenderEngine"]
+        ),
         .executableTarget(
             name: "ZoooomrecCLI",
-            dependencies: ["ZoomTypes", "ZoomEngine", "CaptureEngine", "RenderEngine"]
+            dependencies: ["ZoomTypes", "ZoomEngine", "CaptureEngine", "RenderEngine", "ZoooomrecApp"]
         ),
         .executableTarget(name: "E2EDemo", dependencies: ["ZoomTypes"]),
         .testTarget(name: "ZoomEngineTests", dependencies: ["ZoomEngine", "ZoomTypes"]),

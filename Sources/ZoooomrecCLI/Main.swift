@@ -1,4 +1,5 @@
 import Foundation
+import ZoooomrecApp
 
 enum CLIError: Error, CustomStringConvertible {
     case usage(String)
@@ -11,11 +12,12 @@ enum CLIError: Error, CustomStringConvertible {
 }
 
 let usageText = """
-zoooomrec — open-source zoomable screen recording (Phase 0 spike)
+zoooomrec — open-source zoomable screen recording
 
 USAGE:
-  zoooomrec record --output <path.zoooomrec> [--duration <seconds>]
-  zoooomrec render <path.zoooomrec> --output <out.mp4>
+  zoooomrec app                                        menu-bar app (start/stop recording, zoom scale)
+  zoooomrec record --output <path.zoooomrec> [options] record to a bundle, then auto-render an MP4
+  zoooomrec render <path.zoooomrec> --output <out.mp4> render an existing bundle
   zoooomrec help
 """
 
@@ -29,6 +31,8 @@ struct ZoooomrecCLI {
         }
         do {
             switch subcommand {
+            case "app":
+                ZoooomrecApp.run()
             case "record":
                 try await RecordCommand.run(arguments: Array(args.dropFirst()))
             case "render":
