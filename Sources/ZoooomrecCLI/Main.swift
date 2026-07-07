@@ -1,12 +1,10 @@
 import Foundation
 
 enum CLIError: Error, CustomStringConvertible {
-    case notImplemented(String)
     case usage(String)
 
     var description: String {
         switch self {
-        case .notImplemented(let what): return "\(what) is not implemented yet (scaffold stub)"
         case .usage(let message): return message
         }
     }
