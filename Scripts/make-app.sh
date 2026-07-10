@@ -101,28 +101,11 @@ cert_org_for() {
 # ---------------------------------------------------------------------------
 # a. Build the release binary (retry on SwiftPM build-lock contention).
 #
-# SwiftUI (@State etc.) needs the SwiftUI macro plugin, which ships with Xcode
-# but NOT with the standalone Command Line Tools. If CLT is the active toolchain,
-# `swift build` fails with "external macro implementation ... SwiftUIMacros ...
-# not found" (and cascading "self is immutable"). Honor a caller-set
-# DEVELOPER_DIR; otherwise, when CLT is active and a full Xcode is installed,
-# build with that Xcode for THIS run only (no sudo, no machine-global change).
+# SwiftUI needs a full Xcode toolchain (ZR-909); the shared helper selects one
+# for this run when Command Line Tools is active. Also used by e2e-demo.sh.
 # ---------------------------------------------------------------------------
-if [ -z "${DEVELOPER_DIR:-}" ]; then
-  active_dir="$(xcode-select -p 2>/dev/null || true)"
-  case "$active_dir" in
-    *CommandLineTools*)
-      for cand in /Applications/Xcode*.app/Contents/Developer; do
-        if [ -x "$cand/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc" ]; then
-          export DEVELOPER_DIR="$cand"
-          echo "==> toolchain: active dir is Command Line Tools (no SwiftUI macro plugin);"
-          echo "    building with Xcode toolchain at $DEVELOPER_DIR for this run."
-          break
-        fi
-      done
-      ;;
-  esac
-fi
+# shellcheck source=lib/select-toolchain.sh
+source "$SCRIPT_DIR/lib/select-toolchain.sh"
 
 echo "==> [a] swift build -c release"
 build_ok=0

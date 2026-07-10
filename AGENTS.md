@@ -27,7 +27,7 @@ An open-source (Apache-2.0) zoomable screen recorder. Record the screen; get smo
 
 ## Working agreements
 
-- **Tests are mandatory for `ZoomEngine`.** It is pure logic; there is no excuse. 29 tests currently pass — 25 in `ZoomEngineTests` (the platform-free core) and 4 in `RenderEngineTests`.
+- **Tests are mandatory for `ZoomEngine`.** It is pure logic; there is no excuse. 41 tests currently pass — 33 in `ZoomEngineTests` (the platform-free core) and 8 in `RenderEngineTests`.
 - **No new public API on `ZoomTypes` / `ZoomEngine`** without a maintainer sign-off — every platform port compiles against them.
 - No `TODO` without an owner and a date (or a linked issue). No commented-out code. No stub functions in production paths.
 - Prefer extending an existing type over forking a parallel one. Search before you create.
@@ -57,7 +57,7 @@ Hotkeys while recording: **⌃⌥Z** zoom in (press again to move the zoom) · *
 
 - `swift test` failing with `unable to resolve module dependency: 'XCTest'` means `xcode-select` points at CommandLineTools. Not a code regression. See `ZR-900`.
 - The recorder captures the **main display only**. A cursor on a secondary monitor produces negative coordinates that clamp to the frame edge (`ZR-905`).
-- The cursor is currently **burned into** `recording.mp4` (`showsCursor = true`), so a smoothed synthetic cursor is structurally impossible until `ZR-101` lands.
+- As of bundle format **v2** (`ZR-101`), the cursor is **not** burned into `recording.mp4` — capture runs with `showsCursor = false` and the pointer is reconstructed at render from the 60 Hz `move` track, which is what makes smoothing and hide-when-idle possible. **Back-compat rule:** a v1 bundle still has the real pointer in its pixels, so never draw a synthetic one over it. Detect this with `manifest.cursorIsBurnedIn` (which is `cursorBurnedIn ?? true`) — a missing `cursorBurnedIn` means `true` (legacy v1), never `false`.
 - E2E SSIM assertions must prove zoom **release** by _relative recovery_, not pixel-identity — the release spring is deliberately slow and screen content moves between frames.
 - A `.zoooomrec` recorded with no `--duration` blocks until ⌃⌥S or SIGINT. Scripts must always have a stop path.
 - The click/hotkey capture uses a **listen-only** `CGEventTap`, so it needs **Input Monitoring** — or **Accessibility**, a superset that also grants it (System Settings → Privacy & Security). Without either it degrades to cursor-follow only; it never crashes. (`.listenOnly` maps to Input Monitoring; `.defaultTap` would map to Accessibility.) The `EventRecorder` warning still names Accessibility — valid, since it satisfies the tap, but Input Monitoring is the minimal grant.

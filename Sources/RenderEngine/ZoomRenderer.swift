@@ -44,6 +44,19 @@ public struct ZoomRenderer {
             duration: duration.seconds
         )
 
+        // Synthetic cursor: draw it only when the pointer is NOT already baked into the pixels.
+        // A v1 bundle (`cursorIsBurnedIn == true`, incl. legacy nil) renders byte-for-byte as
+        // before — `nil` frames leave the drain loop untouched. v2 bundles carry the pointer as
+        // `move` events, smoothed into one `CursorFrame?` per output frame here.
+        let cursorFrames: [CursorFrame?]? = bundle.manifest.cursorIsBurnedIn
+            ? nil
+            : CursorTrack.frames(
+                moves: bundle.events.filter { $0.kind == .move },
+                fps: fps,
+                duration: duration.seconds,
+                config: CursorConfig()
+            )
+
         let (reader, readerOutput) = try makeReader(asset: asset, track: track)
         let (writer, writerInput, adaptor) = try makeWriter(
             outputURL: outputURL, width: pixelWidth, height: pixelHeight
@@ -60,6 +73,7 @@ public struct ZoomRenderer {
             writerInput: writerInput,
             adaptor: adaptor,
             keyframes: keyframes,
+            cursorFrames: cursorFrames,
             context: CIContext(options: [.workingColorSpace: NSNull()]),
             outputWidth: pixelWidth,
             outputHeight: pixelHeight,
@@ -153,6 +167,9 @@ private final class RenderPipeline: @unchecked Sendable {
     private let writerInput: AVAssetWriterInput
     private let adaptor: AVAssetWriterInputPixelBufferAdaptor
     private let keyframes: [CropKeyframe]
+    /// One entry per output frame, or `nil` for a burned-in (v1) bundle that draws no cursor.
+    /// An inner `nil` means the pointer is hidden (idle-faded) on that frame.
+    private let cursorFrames: [CursorFrame?]?
     private let context: CIContext
     private let outputWidth: Int
     private let outputHeight: Int
@@ -172,6 +189,7 @@ private final class RenderPipeline: @unchecked Sendable {
         writerInput: AVAssetWriterInput,
         adaptor: AVAssetWriterInputPixelBufferAdaptor,
         keyframes: [CropKeyframe],
+        cursorFrames: [CursorFrame?]?,
         context: CIContext,
         outputWidth: Int,
         outputHeight: Int,
@@ -185,6 +203,7 @@ private final class RenderPipeline: @unchecked Sendable {
         self.writerInput = writerInput
         self.adaptor = adaptor
         self.keyframes = keyframes
+        self.cursorFrames = cursorFrames
         self.context = context
         self.outputWidth = outputWidth
         self.outputHeight = outputHeight
@@ -248,8 +267,12 @@ private final class RenderPipeline: @unchecked Sendable {
             let imageHeight = CGFloat(CVPixelBufferGetHeight(sourceBuffer))
             let source = CIImage(cvPixelBuffer: sourceBuffer)
 
-            let rendered: CIImage
+            var rendered = source
+            // The crop the cursor maps through: the active keyframe, or the full frame when no
+            // zoom is present (identity mapping, so the cursor lands at its capture position).
+            var cropRect = Rect(x: 0, y: 0, width: Double(outputWidth), height: Double(outputHeight))
             if let keyframe = RenderPipeline.nearestKeyframe(keyframes, pts: pts.seconds, fps: fps) {
+                cropRect = keyframe.rect
                 rendered = RenderPipeline.zoom(
                     source: source,
                     rect: keyframe.rect,
@@ -257,8 +280,19 @@ private final class RenderPipeline: @unchecked Sendable {
                     outputWidth: CGFloat(outputWidth),
                     outputHeight: CGFloat(outputHeight)
                 )
-            } else {
-                rendered = source
+            }
+
+            // Draw the synthetic pointer after the crop/scale, indexed by the same nearest-PTS
+            // logic as the crop keyframes. `nil` (burned-in) or a hidden frame leaves it untouched.
+            if let cursorFrames,
+               let cursor = RenderPipeline.nearestCursor(cursorFrames, pts: pts.seconds, fps: fps) {
+                rendered = CursorRenderer.composite(
+                    cursor: cursor,
+                    over: rendered,
+                    crop: cropRect,
+                    outputWidth: Double(outputWidth),
+                    outputHeight: Double(outputHeight)
+                )
             }
 
             guard let pool = adaptor.pixelBufferPool else {
@@ -320,5 +354,15 @@ private final class RenderPipeline: @unchecked Sendable {
         let position = pts.isFinite ? pts : 0
         let index = Int((position * fps).rounded())
         return keyframes[min(max(0, index), keyframes.count - 1)]
+    }
+
+    /// Picks the cursor frame nearest the frame's PTS — same indexing as ``nearestKeyframe``.
+    /// The outer array is non-nil here (checked by the caller); the inner value may be `nil`
+    /// when the pointer is hidden on that frame.
+    private static func nearestCursor(_ frames: [CursorFrame?], pts: Double, fps: Double) -> CursorFrame? {
+        guard !frames.isEmpty else { return nil }
+        let position = pts.isFinite ? pts : 0
+        let index = Int((position * fps).rounded())
+        return frames[min(max(0, index), frames.count - 1)]
     }
 }

@@ -6,15 +6,15 @@ Open-source zoomable screen recording — record your screen, get automatic smoo
 
 ## Status
 
-**v0.2, macOS.** Working: a command-line tool, a menu-bar app (`zoooomrec app`), live hotkey zoom while recording, and automatic click-driven zoom. Not yet: an editor UI, audio capture, a synthetic (smoothable) cursor, a signed/notarised `.app` bundle, or any non-macOS platform.
+**v0.2, macOS.** Working: a command-line tool, a menu-bar app (`zoooomrec app`), live hotkey zoom while recording, automatic click-driven zoom, and a smooth synthetic cursor rebuilt from the movement track. Not yet: an editor UI, audio capture, richer cursor styling (size control, click ripples), a signed/notarised `.app` bundle, or any non-macOS platform.
 
 See [`docs/BACKLOG.md`](docs/BACKLOG.md) for exactly what is done and what is left.
 
 ## How it works
 
-- **Capture**: records a full-resolution video plus an input-event stream (cursor movement, clicks, keys, and your zoom hotkeys) as you work.
+- **Capture**: records a full-resolution video plus an input-event stream (cursor movement, clicks, keys, and your zoom hotkeys) as you work. The pointer is **not** baked into the video — it is kept as its own movement track, so it can be redrawn cleanly in post.
 - **Zoom**: either **you drive it** — press `⌃⌥Z` mid-recording to zoom at the cursor — or it is **inferred** from your click clusters. Explicit edits beat hotkeys, hotkeys beat inferred clicks.
-- **Render**: applies a spring-eased, GPU-accelerated zoom over the source footage, following the cursor while zoomed, to produce the final demo video. Runs automatically the moment you stop recording.
+- **Render**: applies a spring-eased, GPU-accelerated zoom over the source footage, following the cursor while zoomed, and **draws the cursor back in** — smoothed along its recorded path and faded out when it sits still — to produce the final demo video. Runs automatically the moment you stop recording.
 
 Zoom is always **post-production, never burned in at capture** — the raw full-resolution recording is preserved, so the same take can be re-rendered with different zooms or a different feel.
 

@@ -29,6 +29,10 @@ EARLY_T=0.2             # before the first segment's spring moves
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
+# SwiftUI macros need a full Xcode toolchain (ZR-909).
+# shellcheck source=lib/select-toolchain.sh
+source "$SCRIPT_DIR/lib/select-toolchain.sh"
+
 echo "==> [a] swift build -c release"
 build_ok=0
 for attempt in 1 2 3; do
