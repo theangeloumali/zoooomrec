@@ -6,15 +6,19 @@ Open-source zoomable screen recording — record your screen, get automatic smoo
 
 ## Status
 
-Phase 0 spike — macOS CLI proof of concept; not yet an app. There is no GUI, no editor, and no packaged app bundle yet. What exists is a Swift command-line tool that records the screen and renders auto-zoomed output.
+**v0.2, macOS.** Working: a command-line tool, a menu-bar app (`zoooomrec app`), live hotkey zoom while recording, and automatic click-driven zoom. Not yet: an editor UI, audio capture, a synthetic (smoothable) cursor, a signed/notarised `.app` bundle, or any non-macOS platform.
+
+See [`docs/BACKLOG.md`](docs/BACKLOG.md) for exactly what is done and what is left.
 
 ## How it works
 
-- **Capture**: records a full-resolution video plus an input-event stream (clicks and cursor movement) as you work.
-- **Auto-zoom**: analyzes click clusters to auto-generate zoom segments — no manual timeline editing.
-- **Render**: applies a spring-eased, GPU-accelerated zoom over the source footage to produce the final demo video.
+- **Capture**: records a full-resolution video plus an input-event stream (cursor movement, clicks, keys, and your zoom hotkeys) as you work.
+- **Zoom**: either **you drive it** — press `⌃⌥Z` mid-recording to zoom at the cursor — or it is **inferred** from your click clusters. Explicit edits beat hotkeys, hotkeys beat inferred clicks.
+- **Render**: applies a spring-eased, GPU-accelerated zoom over the source footage, following the cursor while zoomed, to produce the final demo video. Runs automatically the moment you stop recording.
 
-A recording is stored as a `.zoooomrec` bundle — a directory holding `recording.mp4` (the raw capture), `events.jsonl` (the input-event stream), and `project.json` (metadata and derived zoom segments).
+Zoom is always **post-production, never burned in at capture** — the raw full-resolution recording is preserved, so the same take can be re-rendered with different zooms or a different feel.
+
+A recording is stored as a `.zoooomrec` bundle — a directory holding `recording.mp4` (the raw capture), `events.jsonl` (the input-event stream), and `project.json` (metadata and any explicit zoom segments). That format is the [cross-platform contract](docs/plans/zoooomrec-data-model-erd-and-as-built-architecture-2026-07-07.md).
 
 ## Requirements
 
@@ -29,7 +33,15 @@ swift build -c release
 
 ## Usage
 
-The fast path — record until you press the stop hotkey, then auto-render:
+The easiest path — the menu-bar app (Start/Stop, zoom scale, reveal last recording):
+
+```sh
+swift run zoooomrec app
+```
+
+Recordings land in `~/Movies/zoooomrec/`. Or use the CLI directly.
+
+The fast CLI path — record until you press the stop hotkey, then auto-render:
 
 ```sh
 .build/release/zoooomrec record --output demo.zoooomrec
