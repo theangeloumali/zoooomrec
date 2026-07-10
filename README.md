@@ -56,11 +56,11 @@ For scripted or fixed-duration captures, record for a set time and render explic
 
 While recording, drive the zoom live from the keyboard:
 
-| Hotkey | Action |
-| --- | --- |
+| Hotkey                   | Action                                                             |
+| ------------------------ | ------------------------------------------------------------------ |
 | `⌃⌥Z` (Control-Option-Z) | Zoom in at the cursor (press again to move the zoom to a new spot) |
-| `⌃⌥X` (Control-Option-X) | Zoom out |
-| `⌃⌥S` (Control-Option-S) | Stop recording |
+| `⌃⌥X` (Control-Option-X) | Zoom out                                                           |
+| `⌃⌥S` (Control-Option-S) | Stop recording                                                     |
 
 Hotkeys require **Accessibility** permission (**System Settings → Privacy & Security → Accessibility**) in addition to Screen Recording. Without it, recording still works, but hotkeys and click-based auto-zoom fall back to cursor-follow only.
 
@@ -73,7 +73,18 @@ Zoom now feels smoother — a softer spring with a ~1s glide — and it follows 
 
 ## Roadmap
 
-macOS app with an editor UI → iOS → Android → Windows. Full plan: [docs/plans/zoooomrec-cross-platform-zoomable-screen-recorder-master-plan-2026-07-07.md](docs/plans/zoooomrec-cross-platform-zoomable-screen-recorder-master-plan-2026-07-07.md).
+macOS app with an editor UI → iOS → Android → Windows.
+
+**[`docs/BACKLOG.md`](docs/BACKLOG.md) is the single source of truth** for what is done and what is left — every ticket, every phase, with status. Start there.
+
+Supporting documents:
+
+- [Data model (ERD) + as-built architecture](docs/plans/zoooomrec-data-model-erd-and-as-built-architecture-2026-07-07.md) — the `.zoooomrec` bundle contract, binding on every platform
+- [Cross-platform master plan](docs/plans/zoooomrec-cross-platform-zoomable-screen-recorder-master-plan-2026-07-07.md) — phasing, platform strategy, estimates
+
+## Contributing
+
+Read [`CLAUDE.md`](CLAUDE.md) before writing code — it carries the architecture invariants, working agreements, and the traps we have already paid for. It applies to humans and AI agents alike. Then pick a ticket from [`docs/BACKLOG.md`](docs/BACKLOG.md) and tick it there in the same commit that closes it.
 
 ## License
 

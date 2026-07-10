@@ -11,6 +11,15 @@ swift test
 
 `swift test` runs the unit suites. ZoomEngine is the fully unit-tested core; add or update tests there whenever you change zoom or timeline logic.
 
+> **Toolchain:** `swift test` needs **full Xcode** — `XCTest` does not ship with the Command Line Tools. If you see `unable to resolve module dependency: 'XCTest'`, point at Xcode rather than debugging your code:
+>
+> ```bash
+> DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
+> # or permanently: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+> ```
+>
+> `swift build` works fine on Command Line Tools alone. Tracked as `ZR-900` in [docs/BACKLOG.md](docs/BACKLOG.md).
+
 ## Module map
 
 The package is split into small, single-responsibility targets:
