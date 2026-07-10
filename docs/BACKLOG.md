@@ -4,7 +4,7 @@
 > Every contributor and every AI agent reads this **before** writing code. Keep it current: when you finish a ticket, tick it here in the same commit.
 
 **Last verified against the code:** 2026-07-10 (v0.3).
-**Health:** `swift build` clean · **29 unit tests, 0 failures** · live E2E green (2 scenarios) · signed `zoooomrec.app` launches, shows permissions onboarding, no Dock icon.
+**Health:** `swift build` clean · **41 unit tests, 0 failures** · live E2E green (2 scenarios) · signed `zoooomrec.app` launches, shows permissions onboarding, no Dock icon.
 
 ## Read these first (in order)
 
@@ -66,8 +66,8 @@ Goal: a macOS app a stranger can download, launch, and produce a polished demo w
 
 ### 1a. Capture completeness
 
-- [ ] **ZR-101** **P0 — Stop burning the cursor into the video.** Capture with `showsCursor = false` and record a dedicated cursor track. _Blocks ZR-102 and every Screen-Studio cursor feature; the current bundle structurally cannot produce a synthetic cursor._ Bump `manifest.version` when the cursor track lands.
-- [ ] **ZR-102** **P1** Synthetic cursor render: Catmull-Rom smoothing over the `move` track, size control, hide-when-static, click ripples, loop-cursor.
+- [x] **ZR-101** **P0 — Stop burning the cursor into the video.** Capture runs with `showsCursor = false`; the pointer now lives only in the 60 Hz `move` track. Bundle format bumped to **v2** (`cursorBurnedIn: false`; a missing flag means legacy v1 and keeps the burned-in pixels). Unblocks ZR-102 and every Screen-Studio cursor feature.
+- [~] **ZR-102** **P1** Synthetic cursor render. **Done:** Catmull-Rom smoothing over the `move` track + hide-when-static fade, composited back over the frame at render. **Left:** cursor size control, click ripples, loop-cursor.
 - [ ] **ZR-103** **P1** Audio capture: microphone + system audio (SCK 13+), muxed into the bundle.
 - [ ] **ZR-104** **P2** Audio at render: mute, duck under voice.
 - [ ] **ZR-109** **P1** Capture picker: specific **window**, **screen region**, and **multi-display**. _Today it is main-display-only; a cursor on a secondary monitor arrives with negative coordinates and clamps to the frame edge (see `ZR-905`)._
@@ -148,8 +148,9 @@ These are small, real, and found by verification — not speculative.
 - [ ] **ZR-905** **P1** Secondary-display cursor coordinates arrive negative and clamp to the frame edge. Subsumed by `ZR-109` (multi-display), but surface a warning in the meantime.
 - [ ] **ZR-906** **P2** CI runs build + unit tests only. Add a headless-safe E2E subset (the synthetic-clip render test is already CI-safe).
 - [ ] **ZR-908** **P1** Editor **trim is UI-only**: handles clamp zoom segments into `[trimStart, trimEnd]`, but `ProjectManifest` has no trim field so the rendered MP4 still covers the full source span. Add `trimStart`/`trimEnd` to the manifest (bump `version`) and honour them in `RenderEngine`.
-- [ ] **ZR-909** **P1** Building now requires **full Xcode**, not just Command Line Tools — SwiftUI's `@State` macro plugin ships only with Xcode. Same root cause as `ZR-900` (XCTest). Update docs; CI is unaffected (`macos-14` has Xcode).
+- [~] **ZR-909** **P1** Building needs **full Xcode** (SwiftUI's `@State` macro plugin ships only with Xcode; Command Line Tools also lacks XCTest — `ZR-900`). **Done:** `Scripts/lib/select-toolchain.sh` auto-selects an installed Xcode for the run; sourced by `make-app.sh` and `e2e-demo.sh`, so both work with no `DEVELOPER_DIR`. **Left:** a bare `swift build`/`swift test` still needs `DEVELOPER_DIR` or `xcode-select`; document in CONTRIBUTING.
 - [ ] **ZR-910** **P2** `RenderProgressThrottle` (ZoooomrecApp) duplicates `ProgressPrinter` (ZoooomrecCLI); both are private to their target. Extract a shared progress-throttle rather than keep two.
+- [ ] **ZR-913** **P2** `FrameProvider` re-reads the whole bundle to get the `move` track and `cursorIsBurnedIn`, because its caller (`EditorModel`) was out of that packet's scope. Thread `moves` + the cursor flag down from `EditorModel` and drop the self-read (one extra bundle read per editor open).
 - [ ] **ZR-911** **P2** `EditorBundle.readEvents` mirrors `RenderBundle.readEvents`, and `FrameProvider`'s crop mirrors `ZoomRenderer.zoom()`'s Y-flip. Promote a small shared reader/crop helper.
 - [ ] **ZR-912** **P2** Menu-bar app still lacks Preferences, an output-folder picker, and a Cancel/Discard for an in-progress take.
 - [ ] **ZR-907** **P2** Cross-vendor second-opinion review (Codex) has never run — no login on the current machine. Optional, self-skipping.
@@ -158,7 +159,7 @@ These are small, real, and found by verification — not speculative.
 
 ## Suggested order of attack
 
-1. **ZR-101** (un-burn the cursor) — it is a _format_ change. Do it before the bundle hardens across platforms; everything cursor-shaped is blocked behind it.
+1. ~~**ZR-101**~~ — **done** (bundle format v2, synthetic cursor). The format change landed before anyone ported or hardened it.
 2. **ZR-110** + **ZR-111** (permissions + signed app) — turns a CLI spike into something a stranger can run.
 3. **ZR-107** (editor UI) — the surface users live in.
 4. **ZR-109** (multi-display / window capture) — closes the most-hit real limitation.

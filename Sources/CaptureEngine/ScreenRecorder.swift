@@ -11,7 +11,7 @@ import ZoomTypes
 private let screenCaptureKitErrorDomain = "com.apple.ScreenCaptureKit.SCStreamErrorDomain"
 
 /// Records the main display into a `.zoooomrec` bundle: H.264 video (native pixel
-/// resolution, cursor visible, 60 fps), an `events.jsonl` cursor stream, and a
+/// resolution, no burned-in cursor, 60 fps), an `events.jsonl` cursor stream, and a
 /// `project.json` manifest. See the CaptureEngine packet contract for details.
 public final class ScreenRecorder {
   /// Frames written by the most recent `record(...)` call (for CLI reporting).
@@ -154,13 +154,19 @@ public final class ScreenRecorder {
       actualDuration = 0
     }
 
+    // ZR-101: a v2 bundle carries the cursor as `move` events only, so the
+    // manifest MUST record cursorBurnedIn: false in lockstep with the
+    // showsCursor = false above. Writing one without the other yields an
+    // inconsistent bundle (a v2 that resolves to burned-in via the nil default).
     let manifest = ProjectManifest(
+      version: ZoooomrecBundle.currentVersion,
       pixelWidth: pixelWidth,
       pixelHeight: pixelHeight,
       fps: 60,
       durationSeconds: actualDuration,
       segments: nil,
-      zoomScale: zoomScale
+      zoomScale: zoomScale,
+      cursorBurnedIn: false
     )
     try encodeManifest(manifest).write(to: manifestURL)
 
@@ -220,7 +226,11 @@ public final class ScreenRecorder {
     configuration.width = pixelWidth
     configuration.height = pixelHeight
     configuration.pixelFormat = kCVPixelFormatType_32BGRA
-    configuration.showsCursor = true
+    // ZR-101: keep the real macOS pointer OUT of recording.mp4. The cursor is
+    // reconstructed at render time from the 60 Hz `move` event track, which is
+    // exactly what lets us smooth, resize, and hide-when-static it — none of
+    // which is possible once the pointer is baked into the captured pixels.
+    configuration.showsCursor = false
     configuration.minimumFrameInterval = CMTime(value: 1, timescale: 60)
     configuration.queueDepth = 6
     return configuration

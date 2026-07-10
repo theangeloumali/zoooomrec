@@ -71,6 +71,34 @@ public struct Rect: Equatable, Sendable {
     public var midY: Double { y + height / 2 }
 }
 
+/// A point in capture-space pixels, top-left origin.
+///
+/// Deliberately *not* `CGPoint`, for the same reason as ``Rect``.
+public struct Point: Equatable, Sendable {
+    public var x: Double
+    public var y: Double
+
+    public init(x: Double, y: Double) {
+        self.x = x
+        self.y = y
+    }
+}
+
+/// Where the synthetic cursor should be drawn for one output frame, and how visible it is.
+///
+/// Derived from the `move` event track at render time and **never persisted** — the raw
+/// samples stay the source of truth so the cursor can be re-smoothed or re-styled later.
+/// `opacity` is 0…1; the cursor fades out once the pointer has been stationary a while.
+public struct CursorFrame: Equatable, Sendable {
+    public var position: Point
+    public var opacity: Double
+
+    public init(position: Point, opacity: Double) {
+        self.position = position
+        self.opacity = opacity
+    }
+}
+
 /// Per-frame crop rectangle in capture-space pixels (top-left origin).
 ///
 /// Derived at render time from the zoom timeline and **never persisted** — storing it
@@ -99,9 +127,20 @@ public struct ProjectManifest: Codable, Equatable, Sendable {
     /// Zoom magnification chosen at record time (applied to hotkey/auto zooms at
     /// render). `nil` means the renderer uses its own default. Additive/optional.
     public var zoomScale: Double?
+    /// Whether the real macOS pointer is baked into `recording.mp4`'s pixels.
+    ///
+    /// `nil` means **true** — every v1 bundle was captured with `showsCursor = true`, so a
+    /// renderer must NOT draw a synthetic cursor over it or the frame gets two pointers.
+    /// v2 bundles set this `false` and carry the cursor purely as `move` events, which is
+    /// what makes smoothing, resizing, and hide-when-static possible at all.
+    /// Read it through ``cursorIsBurnedIn`` rather than unwrapping it directly.
+    public var cursorBurnedIn: Bool?
+
+    /// Resolved cursor mode, defaulting legacy (`nil`) bundles to "already in the pixels".
+    public var cursorIsBurnedIn: Bool { cursorBurnedIn ?? true }
 
     public init(
-        version: Int = 1,
+        version: Int = ZoooomrecBundle.currentVersion,
         videoFile: String = ZoooomrecBundle.videoName,
         eventsFile: String = ZoooomrecBundle.eventsName,
         pixelWidth: Int,
@@ -109,7 +148,8 @@ public struct ProjectManifest: Codable, Equatable, Sendable {
         fps: Double,
         durationSeconds: Double,
         segments: [ZoomSegment]? = nil,
-        zoomScale: Double? = nil
+        zoomScale: Double? = nil,
+        cursorBurnedIn: Bool? = nil
     ) {
         self.version = version
         self.videoFile = videoFile
@@ -120,6 +160,7 @@ public struct ProjectManifest: Codable, Equatable, Sendable {
         self.durationSeconds = durationSeconds
         self.segments = segments
         self.zoomScale = zoomScale
+        self.cursorBurnedIn = cursorBurnedIn
     }
 }
 
@@ -128,6 +169,13 @@ public enum ZoooomrecBundle {
     public static let videoName = "recording.mp4"
     public static let eventsName = "events.jsonl"
     public static let manifestName = "project.json"
+
+    /// Bundle format version written by this build.
+    ///
+    /// - `1` — cursor burned into `recording.mp4`.
+    /// - `2` — cursor captured as `move` events only (`cursorBurnedIn: false`) and drawn
+    ///   synthetically at render, so it can be smoothed, resized, and hidden when idle.
+    public static let currentVersion = 2
 }
 
 /// Shared zoom defaults so the record-time default and the render fallback stay in lockstep.

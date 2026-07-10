@@ -1,6 +1,6 @@
 # zoooomrec — Data Model (ERD) + As-Built Architecture (2026-07-07)
 
-> Authored from the **shipped code** at commit `9be6afa` (v0.2), not from the plan — every field below was read out of `Sources/ZoomTypes/Models.swift` and a real `project.json` on disk.
+> Authored from the **shipped code** at commit `9be6afa` (v0.2), not from the plan — every field below was read out of `Sources/ZoomTypes/Models.swift` and a real `project.json` on disk. Updated for the **bundle format v2** cursor contract (ZR-101, commit `27ad2c0`): the pointer is no longer burned into the pixels.
 >
 > Companion docs: [master plan](./zoooomrec-cross-platform-zoomable-screen-recorder-master-plan-2026-07-07.md) · [v0.2 plan](./zoooomrec-v0.2-live-hotkey-zoom-smooth-feel-menubar-2026-07-07.md)
 
@@ -26,7 +26,7 @@ erDiagram
     PROJECT_MANIFEST ||--o{ ZOOM_SEGMENT : "segments (optional, embedded)"
 
     PROJECT_MANIFEST {
-        Int version "1"
+        Int version "2"
         String videoFile "recording.mp4"
         String eventsFile "events.jsonl"
         Int pixelWidth "3840"
@@ -35,6 +35,7 @@ erDiagram
         Double durationSeconds "10.883"
         Array segments "nullable: nil = derive"
         Double zoomScale "nullable: nil = ZoomDefaults.scale"
+        Bool cursorBurnedIn "nullable: nil = true (v1 legacy)"
     }
     INPUT_EVENT {
         Double t "sec since first video frame"
@@ -53,16 +54,19 @@ erDiagram
         String codec "H.264"
         Int width "= manifest.pixelWidth"
         Int height "= manifest.pixelHeight"
-        Bool cursorBurnedIn "true (v0.2)"
+        Bool cursorBurnedIn "false (v2) — pointer lives in the move track"
     }
 ```
 
-### Two nullable fields carry all the behavior
+### Three nullable fields carry all the behavior
 
-| Field                | `nil` means                                       | Set means                                                |
-| -------------------- | ------------------------------------------------- | -------------------------------------------------------- |
-| `manifest.segments`  | derive zooms from the event stream at render time | use these exact zooms (an edited/manual timeline)        |
-| `manifest.zoomScale` | fall back to `ZoomDefaults.scale` (2.0)           | the magnification chosen at record time (`--zoom-scale`) |
+| Field                   | `nil` means                                                | Set means                                                              |
+| ----------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------- |
+| `manifest.segments`     | derive zooms from the event stream at render time          | use these exact zooms (an edited/manual timeline)                     |
+| `manifest.zoomScale`    | fall back to `ZoomDefaults.scale` (2.0)                    | the magnification chosen at record time (`--zoom-scale`)             |
+| `manifest.cursorBurnedIn` | **`true`** — a v1 bundle with the real pointer in the pixels | `false` (v2): the pointer is out of the pixels and lives only in the `move` events, drawn synthetically at render |
+
+> Read `cursorBurnedIn` through the computed `cursorIsBurnedIn` (`cursorBurnedIn ?? true`), never by unwrapping it directly — a missing key must resolve to a legacy v1 bundle.
 
 ### `InputEvent.kind` enum
 
@@ -75,7 +79,16 @@ erDiagram
 | `zoom_in`                    | **⌃⌥Z** hotkey                           | **ManualZoom** — opens a zoom / retargets   |
 | `zoom_out`                   | **⌃⌥X** hotkey                           | **ManualZoom** — closes the zoom            |
 
-> `CropKeyframe { t, rect: Rect }` — and the `Rect { x, y, width, height }` it holds — are deliberately **absent from the ERD**: both are derived per-frame at render time and never persisted. `Rect` is a platform-free value type, deliberately _not_ `CGRect`, so the crop math ports to Android/Windows unchanged; the CoreImage layer bridges it to `CGRect` only at the render boundary. Persisting these would freeze the animation and break re-rendering at a different spring feel.
+> `CropKeyframe { t, rect: Rect }`, `CursorFrame { position: Point, opacity }`, and the `Rect { x, y, width, height }` / `Point { x, y }` value types they carry are deliberately **absent from the ERD**: all are derived per-frame at render time and never persisted. `Rect` and `Point` are platform-free value types, deliberately _not_ `CGRect` / `CGPoint`, so the crop and cursor math port to Android/Windows unchanged; the CoreImage layer bridges them only at the render boundary. `CursorFrame` — where the synthetic pointer sits and how opaque it is on a given output frame — is recomputed from the `move` event track every render, so the cursor can be re-smoothed, resized, or faded later. Persisting any of these would freeze the animation and break re-rendering at a different spring feel.
+
+### Format versions
+
+| `manifest.version` | Cursor storage                                                                        | How a reader must treat it                                                     |
+| ------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **v1**             | The real macOS pointer is **burned into** `recording.mp4` (`cursorBurnedIn` absent)   | Never draw a synthetic cursor — the pixels already have one                     |
+| **v2**             | Pointer is captured as `move` **events only** (`cursorBurnedIn: false`)               | Draw the pointer synthetically from the `move` track, smoothed and idle-faded   |
+
+A reader that does not recognise `cursorBurnedIn` must treat it as **`true`** (legacy v1), so old bundles keep rendering correctly and never end up with two pointers. This is exactly what `ProjectManifest.cursorIsBurnedIn` (`cursorBurnedIn ?? true`) encodes — every platform port is expected to mirror that default.
 
 ---
 
@@ -133,7 +146,7 @@ flowchart TD
     ENG --> TYP
 ```
 
-**Why this shape matters for the roadmap:** `ZoomEngine` + `ZoomTypes` contain zero platform APIs — pure Swift value types and math, covered by the platform-free `ZoomEngineTests` suite (25 tests, one of which fails if either module imports a platform framework). The AVFoundation renderer is proven separately by `RenderEngineTests`. They port to iOS unchanged. Only `CaptureEngine` (ScreenCaptureKit → ReplayKit/MediaProjection) and the UI shell are platform-specific. That is the ~60%-reuse claim in the master plan, now concrete.
+**Why this shape matters for the roadmap:** `ZoomEngine` + `ZoomTypes` contain zero platform APIs — pure Swift value types and math, covered by the platform-free `ZoomEngineTests` suite (33 tests, one of which fails if either module imports a platform framework). The AVFoundation renderer — including the synthetic-cursor compositor — is proven separately by `RenderEngineTests`. They port to iOS unchanged. Only `CaptureEngine` (ScreenCaptureKit → ReplayKit/MediaProjection) and the UI shell are platform-specific. That is the ~60%-reuse claim in the master plan, now concrete.
 
 ---
 
@@ -143,7 +156,7 @@ flowchart TD
 2. **Timestamps** (`InputEvent.t`, `ZoomSegment.start/end`) are seconds relative to the **first video frame's presentation time**, never process start. Events before the first frame clamp to `t = 0`.
 3. **`events.jsonl` is append-only JSONL**, one `InputEvent` per line, time-sorted. Unknown `kind` values must be skipped, not fatal — this is how we add event kinds without breaking old readers.
 4. **Segment centers are stored raw** (possibly out of frame). The renderer clamps per frame. One source of truth: `ZoomTimeline`.
-5. **`version: 1`.** Any breaking change to the above increments it.
+5. **`version: 2`** (current). v1 burned the cursor into `recording.mp4`; v2 moved it out into the `move` track (`cursorBurnedIn: false`) and draws it synthetically. Any breaking change to the above increments the version again, and a missing `cursorBurnedIn` always resolves to `true` (legacy v1).
 
 ---
 
@@ -153,8 +166,9 @@ flowchart TD
 | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | **Main display only** — coordinates from a secondary monitor arrive negative and clamp to the frame edge | Recording a second monitor produces edge-pinned zooms                                   | Multi-display capture (next increment)                                                        |
 | No audio track in the bundle                                                                             | Mic/system audio unrecorded                                                             | Master plan §5 module 1                                                                       |
-| Cursor is **burned into** `recording.mp4` (`showsCursor = true`)                                         | Cannot smooth, resize, or hide the cursor in post — the Screen Studio signature feature | Synthetic-cursor work; requires capturing with `showsCursor = false` + a `cursor` event track |
+| No cursor **size control, click ripples, or loop-cursor** yet                                            | The synthetic pointer draws at native size with idle-fade + smoothing, but the richer Screen-Studio cursor styling is still open | Cursor polish pass (`ZR-102`)                                                                 |
+| macOS **hides the real pointer** during text entry and full-screen video, but we still draw the synthetic one from the `move` samples | The rendered cursor can appear where the OS would have shown nothing                     | Recordings that include text fields or full-screen playback                                   |
 | No `zoomScale` per-segment                                                                               | One magnification per recording                                                         | Per-zoom scale in the editor                                                                  |
 | `scroll` events captured but unused                                                                      | Dead enum case (documented, not dead code)                                              | Scroll-driven auto-zoom, if ever                                                              |
 
-The cursor row is the most consequential: today's bundle **cannot** produce a smoothed synthetic cursor, because the real one is already in the pixels. Fixing it is a capture-side change (`showsCursor = false` + render the cursor from the `move` track), and it is a prerequisite for the master plan's cursor features.
+The old "cursor is burned into `recording.mp4`" gap is now **closed** by `ZR-101`: v2 bundles capture with `showsCursor = false` and reconstruct the pointer from the `move` track at render, so it can be smoothed and faded when idle. What remains is cursor _styling_ (`ZR-102`) and the fact that macOS itself hides the real pointer in some contexts while we still draw ours.
