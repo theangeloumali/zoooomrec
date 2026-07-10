@@ -9,9 +9,10 @@
 ## Read these first (in order)
 
 1. **This file** — what to work on.
-2. [Data model (ERD) + as-built architecture](./plans/zoooomrec-data-model-erd-and-as-built-architecture-2026-07-07.md) — the `.zoooomrec` bundle contract. **Binding on every platform.**
-3. [Master plan](./plans/zoooomrec-cross-platform-zoomable-screen-recorder-master-plan-2026-07-07.md) — phasing, platform strategy, estimates.
-4. [v0.2 plan](./plans/zoooomrec-v0.2-live-hotkey-zoom-smooth-feel-menubar-2026-07-07.md) — the most recent shipped increment.
+2. [`AGENTS.md`](../AGENTS.md) — architecture invariants, working agreements, known traps. Binding on humans and AI agents alike.
+3. [Data model (ERD) + as-built architecture](./plans/zoooomrec-data-model-erd-and-as-built-architecture-2026-07-07.md) — the `.zoooomrec` bundle contract. **Binding on every platform.**
+4. [Master plan](./plans/zoooomrec-cross-platform-zoomable-screen-recorder-master-plan-2026-07-07.md) — phasing, platform strategy, estimates.
+5. [v0.2 plan](./plans/zoooomrec-v0.2-live-hotkey-zoom-smooth-feel-menubar-2026-07-07.md) — the most recent shipped increment.
 
 ## Ground rules for anyone touching this repo
 

@@ -2,7 +2,7 @@
 
 Open-source zoomable screen recording — record your screen, get automatic smooth zoom-ins on your clicks, export polished demo MP4s.
 
-[![CI](https://github.com/zoooomrec/zoooomrec/actions/workflows/ci.yml/badge.svg)](https://github.com/zoooomrec/zoooomrec/actions/workflows/ci.yml)
+[![CI](https://github.com/theangeloumali/zoooomrec/actions/workflows/ci.yml/badge.svg)](https://github.com/theangeloumali/zoooomrec/actions/workflows/ci.yml)
 
 ## Status
 
@@ -96,7 +96,7 @@ Supporting documents:
 
 ## Contributing
 
-Read [`CLAUDE.md`](CLAUDE.md) before writing code — it carries the architecture invariants, working agreements, and the traps we have already paid for. It applies to humans and AI agents alike. Then pick a ticket from [`docs/BACKLOG.md`](docs/BACKLOG.md) and tick it there in the same commit that closes it.
+Read [`AGENTS.md`](AGENTS.md) before writing code — it carries the architecture invariants, working agreements, and the traps we have already paid for. It applies to humans and AI agents alike (`CLAUDE.md` simply points there). Then pick a ticket from [`docs/BACKLOG.md`](docs/BACKLOG.md) and tick it there in the same commit that closes it.
 
 ## License
 
