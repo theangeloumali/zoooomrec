@@ -272,18 +272,20 @@ private final class RenderPipeline: @unchecked Sendable {
     /// CoreImage uses a bottom-left origin, so the top-left rect is flipped in Y before
     /// cropping; the cropped extent is translated back to the origin so the writer receives
     /// an origin-aligned frame, and finally scaled up to the full output size.
+    /// `rect` is a platform-free `ZoomTypes.Rect` (top-left origin); CoreGraphics is
+    /// introduced only here, at the CoreImage boundary.
     private static func zoom(
         source: CIImage,
-        rect: CGRect,
+        rect: Rect,
         imageHeight: CGFloat,
         outputWidth: CGFloat,
         outputHeight: CGFloat
     ) -> CIImage {
         let flipped = CGRect(
-            x: rect.minX,
-            y: imageHeight - rect.maxY,
-            width: rect.width,
-            height: rect.height
+            x: CGFloat(rect.minX),
+            y: imageHeight - CGFloat(rect.maxY),
+            width: CGFloat(rect.width),
+            height: CGFloat(rect.height)
         )
         let cropRect = flipped.intersection(source.extent)
         guard !cropRect.isNull, cropRect.width > 0, cropRect.height > 0 else {

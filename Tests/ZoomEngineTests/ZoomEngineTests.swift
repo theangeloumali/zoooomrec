@@ -1,4 +1,3 @@
-import CoreGraphics
 import XCTest
 import ZoomTypes
 
@@ -158,7 +157,7 @@ final class ZoomTimelineTests: XCTestCase {
     private let width = 1920.0
     private let height = 1080.0
 
-    private func assertInBounds(_ rect: CGRect, _ w: Double, _ h: Double, line: UInt = #line) {
+    private func assertInBounds(_ rect: Rect, _ w: Double, _ h: Double, line: UInt = #line) {
         let eps = 1e-6
         XCTAssertGreaterThanOrEqual(rect.minX, -eps, "rect.minX escaped left", line: line)
         XCTAssertGreaterThanOrEqual(rect.minY, -eps, "rect.minY escaped top", line: line)
@@ -186,7 +185,7 @@ final class ZoomTimelineTests: XCTestCase {
         let frames = ZoomTimeline.cropKeyframes(
             segments: [], width: width, height: height, fps: 30, duration: 1.0)
         for f in frames {
-            XCTAssertEqual(f.rect, CGRect(x: 0, y: 0, width: width, height: height))
+            XCTAssertEqual(f.rect, Rect(x: 0, y: 0, width: width, height: height))
         }
     }
 
@@ -349,7 +348,7 @@ final class ZoomTimelineFollowTests: XCTestCase {
 
     private func cropCenterX(_ frame: CropKeyframe) -> Double { frame.rect.midX }
 
-    private func assertInBounds(_ rect: CGRect, _ w: Double, _ h: Double, line: UInt = #line) {
+    private func assertInBounds(_ rect: Rect, _ w: Double, _ h: Double, line: UInt = #line) {
         let eps = 1e-6
         XCTAssertGreaterThanOrEqual(rect.minX, -eps, "rect.minX escaped left", line: line)
         XCTAssertGreaterThanOrEqual(rect.minY, -eps, "rect.minY escaped top", line: line)

@@ -1,4 +1,3 @@
-import CoreGraphics
 import Foundation
 import ZoomTypes
 
@@ -168,7 +167,7 @@ public enum ZoomTimeline {
             let cropHeight = height / scale.value
             let x = min(max(0, centerX.value - cropWidth / 2), width - cropWidth)
             let y = min(max(0, centerY.value - cropHeight / 2), height - cropHeight)
-            frames.append(CropKeyframe(t: t, rect: CGRect(x: x, y: y, width: cropWidth, height: cropHeight)))
+            frames.append(CropKeyframe(t: t, rect: Rect(x: x, y: y, width: cropWidth, height: cropHeight)))
         }
         return frames
     }

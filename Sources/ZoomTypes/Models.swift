@@ -1,4 +1,3 @@
-import CoreGraphics
 import Foundation
 
 /// One captured input event. Timestamps are seconds since the first video frame.
@@ -46,12 +45,41 @@ public struct ZoomSegment: Codable, Equatable, Sendable {
     }
 }
 
+/// An axis-aligned rectangle in capture-space pixels, top-left origin.
+///
+/// Deliberately *not* `CGRect`: `ZoomTypes` and `ZoomEngine` must stay free of every
+/// platform framework so the timeline and zoom math port to Android and Windows
+/// unchanged. Platform layers bridge this at their own boundary.
+public struct Rect: Equatable, Sendable {
+    public var x: Double
+    public var y: Double
+    public var width: Double
+    public var height: Double
+
+    public init(x: Double, y: Double, width: Double, height: Double) {
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+    }
+
+    public var minX: Double { x }
+    public var minY: Double { y }
+    public var maxX: Double { x + width }
+    public var maxY: Double { y + height }
+    public var midX: Double { x + width / 2 }
+    public var midY: Double { y + height / 2 }
+}
+
 /// Per-frame crop rectangle in capture-space pixels (top-left origin).
+///
+/// Derived at render time from the zoom timeline and **never persisted** — storing it
+/// would freeze the animation and prevent re-rendering with a different spring feel.
 public struct CropKeyframe: Equatable, Sendable {
     public var t: Double
-    public var rect: CGRect
+    public var rect: Rect
 
-    public init(t: Double, rect: CGRect) {
+    public init(t: Double, rect: Rect) {
         self.t = t
         self.rect = rect
     }
