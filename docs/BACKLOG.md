@@ -3,8 +3,8 @@
 > **This file is the single source of truth for what is done and what is left.**
 > Every contributor and every AI agent reads this **before** writing code. Keep it current: when you finish a ticket, tick it here in the same commit.
 
-**Last verified against the code:** 2026-07-10, commit `6408cb9`.
-**Health:** `swift build` clean · **25 unit tests, 0 failures** · live E2E green (2 scenarios).
+**Last verified against the code:** 2026-07-10 (v0.3).
+**Health:** `swift build` clean · **29 unit tests, 0 failures** · live E2E green (2 scenarios) · signed `zoooomrec.app` launches, shows permissions onboarding, no Dock icon.
 
 ## Read these first (in order)
 
@@ -75,7 +75,7 @@ Goal: a macOS app a stranger can download, launch, and produce a polished demo w
 
 ### 1b. The editor (the surface users actually live in)
 
-- [ ] **ZR-107** **P0** Editor UI (SwiftUI): preview canvas, timeline with draggable/resizable zoom segments, click-to-edit scale + focus point, scrubbing, trim handles.
+- [x] **ZR-107** **P0** Editor UI (SwiftUI): preview canvas, timeline with draggable/resizable zoom segments, click-to-edit scale + focus point, scrubbing, trim handles.
 - [ ] **ZR-108** **P1** Per-segment zoom scale + per-segment easing override (today one `zoomScale` per recording).
 - [ ] **ZR-113** **P1** Trim start/end (write `segments` + trim into the manifest; re-render).
 - [ ] **ZR-105** **P1** Backgrounds & styling: solid / gradient / image, outer padding, corner radius, shadow, inset.
@@ -87,8 +87,8 @@ Goal: a macOS app a stranger can download, launch, and produce a polished demo w
 
 ### 1d. Ship it
 
-- [ ] **ZR-110** **P0** Permissions onboarding: live TCC status for Screen Recording + Accessibility, detect-and-relaunch after grant. _The #1 drop-off in this category — treat as a designed surface._
-- [ ] **ZR-111** **P0** Distribution: proper `.app` bundle, Developer ID signing, notarization, Sparkle auto-update, landing page.
+- [x] **ZR-110** **P0** Permissions onboarding: live TCC status for Screen Recording + Accessibility, detect-and-relaunch after grant. _The #1 drop-off in this category — treat as a designed surface._
+- [~] **ZR-111** **P0** Distribution. **Done:** signed `.app` bundle (`Scripts/make-app.sh`, `LSUIElement`, stable identity so TCC grants persist), `Scripts/notarize.sh`. **Left:** a `Developer ID Application` cert under ZKidz Dev LLC (`7QZW432V8B`) — none installed, so notarization cannot run; then Sparkle + landing page.
 
 ## Phase 1.5 — Screen Studio parity (post-MVP, demand-ordered)
 
@@ -144,9 +144,14 @@ These are small, real, and found by verification — not speculative.
 - [ ] **ZR-901** **P2** No `.swift-format` config exists; formatting is editor-driven. Add one + a CI format check.
 - [ ] **ZR-902** **P2** `hooks/dead-code-check.sh` has no Swift scanner. Wire in `periphery`.
 - [ ] **ZR-903** **P2** `AutoZoomConfig.minDuration` (1.2 s) can never fire at default config — padding already floors every segment at ≈2.4 s. Either gate significance **pre-pad** (raw click span/count) or drop the knob. _Known, intentionally deferred._
-- [ ] **ZR-904** **P1** Menu-bar app: quitting **mid-recording** abandons the `AVAssetWriter`, losing the recording. Finalise (or refuse to quit) on terminate.
+- [x] **ZR-904** **P1** Menu-bar app: quitting **mid-recording** abandons the `AVAssetWriter`, losing the recording. Finalise (or refuse to quit) on terminate.
 - [ ] **ZR-905** **P1** Secondary-display cursor coordinates arrive negative and clamp to the frame edge. Subsumed by `ZR-109` (multi-display), but surface a warning in the meantime.
 - [ ] **ZR-906** **P2** CI runs build + unit tests only. Add a headless-safe E2E subset (the synthetic-clip render test is already CI-safe).
+- [ ] **ZR-908** **P1** Editor **trim is UI-only**: handles clamp zoom segments into `[trimStart, trimEnd]`, but `ProjectManifest` has no trim field so the rendered MP4 still covers the full source span. Add `trimStart`/`trimEnd` to the manifest (bump `version`) and honour them in `RenderEngine`.
+- [ ] **ZR-909** **P1** Building now requires **full Xcode**, not just Command Line Tools — SwiftUI's `@State` macro plugin ships only with Xcode. Same root cause as `ZR-900` (XCTest). Update docs; CI is unaffected (`macos-14` has Xcode).
+- [ ] **ZR-910** **P2** `RenderProgressThrottle` (ZoooomrecApp) duplicates `ProgressPrinter` (ZoooomrecCLI); both are private to their target. Extract a shared progress-throttle rather than keep two.
+- [ ] **ZR-911** **P2** `EditorBundle.readEvents` mirrors `RenderBundle.readEvents`, and `FrameProvider`'s crop mirrors `ZoomRenderer.zoom()`'s Y-flip. Promote a small shared reader/crop helper.
+- [ ] **ZR-912** **P2** Menu-bar app still lacks Preferences, an output-folder picker, and a Cancel/Discard for an in-progress take.
 - [ ] **ZR-907** **P2** Cross-vendor second-opinion review (Codex) has never run — no login on the current machine. Optional, self-skipping.
 
 ---

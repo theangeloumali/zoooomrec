@@ -29,20 +29,10 @@ public struct ZoomRenderer {
         let pixelHeight = Int(abs(naturalSize.height).rounded())
         let fps = bundle.manifest.fps
 
-        let scale = bundle.manifest.zoomScale ?? ZoomDefaults.scale
-        let hasManualMarkers = bundle.events.contains { $0.kind == .zoomIn }
-        let segments = bundle.manifest.segments ?? (
-            hasManualMarkers
-                ? ManualZoom.segments(
-                    from: bundle.events,
-                    width: Double(bundle.manifest.pixelWidth),
-                    height: Double(bundle.manifest.pixelHeight),
-                    scale: scale,
-                    duration: duration.seconds)
-                : AutoZoom.segments(
-                    from: bundle.events,
-                    width: Double(bundle.manifest.pixelWidth),
-                    height: Double(bundle.manifest.pixelHeight))
+        let segments = Self.compileSegments(
+            manifest: bundle.manifest,
+            events: bundle.events,
+            duration: duration.seconds
         )
         // Cursor-follow overload: both manual and auto zooms pan toward the live cursor.
         let keyframes = ZoomTimeline.cropKeyframes(
@@ -79,6 +69,32 @@ public struct ZoomRenderer {
         )
         try await pipeline.run()
         progress?(1.0)
+    }
+
+    /// Selects the zoom lane and compiles it into segments.
+    ///
+    /// Precedence (as shipped): explicit `manifest.segments` > hotkey markers
+    /// (``ManualZoom``) > click auto-zoom (``AutoZoom``). The record-time `zoomScale`
+    /// drives BOTH the manual and auto lanes — auto-zoom previously received no config
+    /// and so always rendered at `AutoZoomConfig`'s 2.0 default, silently ignoring
+    /// `--zoom-scale`. Extracted so the lane + scale wiring is unit-testable without a
+    /// full render (see `RenderEngineTests/ZoomScaleWiringTests`).
+    static func compileSegments(
+        manifest: ProjectManifest,
+        events: [InputEvent],
+        duration: Double
+    ) -> [ZoomSegment] {
+        if let explicit = manifest.segments { return explicit }
+        let scale = manifest.zoomScale ?? ZoomDefaults.scale
+        let width = Double(manifest.pixelWidth)
+        let height = Double(manifest.pixelHeight)
+        let hasManualMarkers = events.contains { $0.kind == .zoomIn }
+        return hasManualMarkers
+            ? ManualZoom.segments(
+                from: events, width: width, height: height, scale: scale, duration: duration)
+            : AutoZoom.segments(
+                from: events, width: width, height: height,
+                config: AutoZoomConfig(zoomScale: scale))
     }
 
     // MARK: - Reader / writer construction

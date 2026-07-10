@@ -69,13 +69,13 @@ erDiagram
 | Raw value                    | Emitted by                               | Used for                                    |
 | ---------------------------- | ---------------------------------------- | ------------------------------------------- |
 | `move`                       | 60 Hz cursor poll (no permission needed) | cursor-follow target inside a zoom          |
-| `left_click` / `right_click` | CGEventTap (needs Accessibility)         | **AutoZoom** click clustering               |
+| `left_click` / `right_click` | listen-only CGEventTap (Input Monitoring, or Accessibility) | **AutoZoom** click clustering               |
 | `key_down`                   | CGEventTap                               | extends an AutoZoom cluster's hold (typing) |
 | `scroll`                     | CGEventTap                               | reserved; creates no segment                |
 | `zoom_in`                    | **⌃⌥Z** hotkey                           | **ManualZoom** — opens a zoom / retargets   |
 | `zoom_out`                   | **⌃⌥X** hotkey                           | **ManualZoom** — closes the zoom            |
 
-> `CropKeyframe { t, rect }` is deliberately **absent from the ERD** — it is derived per-frame at render time and never persisted. Persisting it would freeze the animation and break re-rendering at a different spring feel.
+> `CropKeyframe { t, rect: Rect }` — and the `Rect { x, y, width, height }` it holds — are deliberately **absent from the ERD**: both are derived per-frame at render time and never persisted. `Rect` is a platform-free value type, deliberately _not_ `CGRect`, so the crop math ports to Android/Windows unchanged; the CoreImage layer bridges it to `CGRect` only at the render boundary. Persisting these would freeze the animation and break re-rendering at a different spring feel.
 
 ---
 
@@ -133,7 +133,7 @@ flowchart TD
     ENG --> TYP
 ```
 
-**Why this shape matters for the roadmap:** `ZoomEngine` + `ZoomTypes` contain zero platform APIs — pure Swift value types and math, covered by 25 unit tests. They port to iOS unchanged. Only `CaptureEngine` (ScreenCaptureKit → ReplayKit/MediaProjection) and the UI shell are platform-specific. That is the ~60%-reuse claim in the master plan, now concrete.
+**Why this shape matters for the roadmap:** `ZoomEngine` + `ZoomTypes` contain zero platform APIs — pure Swift value types and math, covered by the platform-free `ZoomEngineTests` suite (25 tests, one of which fails if either module imports a platform framework). The AVFoundation renderer is proven separately by `RenderEngineTests`. They port to iOS unchanged. Only `CaptureEngine` (ScreenCaptureKit → ReplayKit/MediaProjection) and the UI shell are platform-specific. That is the ~60%-reuse claim in the master plan, now concrete.
 
 ---
 

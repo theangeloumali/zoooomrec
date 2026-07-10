@@ -6,3 +6,10 @@ xcuserdata/
 recordings/
 docs/plans/*.html
 .claude/.worktree/
+
+# Built + signed app bundle and notarization artifacts (produced by Scripts/make-app.sh)
+dist/
+*.icns
+
+# Maintainer-local signing identity (never commit)
+.signing.env

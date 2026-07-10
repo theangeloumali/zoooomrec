@@ -17,7 +17,7 @@ An open-source (Apache-2.0) zoomable screen recorder. Record the screen; get smo
 ## Architecture invariants (do not break these)
 
 - **Zoom is post-production, never burned in at capture.** The full-resolution recording is always preserved so it can be re-rendered with different zooms or a different spring feel.
-- **`ZoomTypes` and `ZoomEngine` must stay platform-free.** No AppKit, AVFoundation, UIKit, or any OS API. They are pure value types and math, and that purity is exactly what makes the iOS/Android ports cheap. Enforced at review.
+- **`ZoomTypes` and `ZoomEngine` must stay platform-free.** No AppKit, AVFoundation, UIKit, CoreGraphics, or any OS API — `Foundation` (plus `ZoomTypes`) only. They are pure value types and math, and that purity is exactly what makes the iOS/Android ports cheap. Enforced at review **and** by `ZoomEngineTests/PlatformFreedomGuardTests`, which reads the sources off disk and fails if either module imports a platform framework.
 - **Dependencies flow downward only:** `CLI`/`App` → `CaptureEngine`/`RenderEngine` → `ZoomEngine` → `ZoomTypes`. `ZoomTypes` depends on nothing.
 - **Coordinates** are capture-space **pixels**, top-left origin (not points, not normalised).
 - **Timestamps** are seconds relative to the **first video frame's presentation time**, never process start.
@@ -27,7 +27,7 @@ An open-source (Apache-2.0) zoomable screen recorder. Record the screen; get smo
 
 ## Working agreements
 
-- **Tests are mandatory for `ZoomEngine`.** It is pure logic; there is no excuse. 25 tests currently pass.
+- **Tests are mandatory for `ZoomEngine`.** It is pure logic; there is no excuse. 29 tests currently pass — 25 in `ZoomEngineTests` (the platform-free core) and 4 in `RenderEngineTests`.
 - **No new public API on `ZoomTypes` / `ZoomEngine`** without a maintainer sign-off — every platform port compiles against them.
 - No `TODO` without an owner and a date (or a linked issue). No commented-out code. No stub functions in production paths.
 - Prefer extending an existing type over forking a parallel one. Search before you create.
@@ -41,7 +41,7 @@ swift build -c release
 # Tests need FULL Xcode — XCTest is absent from CommandLineTools (see ZR-900).
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 
-# Menu-bar app (inherits the terminal's Screen Recording + Accessibility grants)
+# Menu-bar app (inherits the terminal's Screen Recording + input-tap grants)
 swift run zoooomrec app
 
 # One-shot: record until ⌃⌥S, then auto-render a sibling MP4
@@ -60,3 +60,4 @@ Hotkeys while recording: **⌃⌥Z** zoom in (press again to move the zoom) · *
 - The cursor is currently **burned into** `recording.mp4` (`showsCursor = true`), so a smoothed synthetic cursor is structurally impossible until `ZR-101` lands.
 - E2E SSIM assertions must prove zoom **release** by _relative recovery_, not pixel-identity — the release spring is deliberately slow and screen content moves between frames.
 - A `.zoooomrec` recorded with no `--duration` blocks until ⌃⌥S or SIGINT. Scripts must always have a stop path.
+- The click/hotkey capture uses a **listen-only** `CGEventTap`, so it needs **Input Monitoring** — or **Accessibility**, a superset that also grants it (System Settings → Privacy & Security). Without either it degrades to cursor-follow only; it never crashes. (`.listenOnly` maps to Input Monitoring; `.defaultTap` would map to Accessibility.) The `EventRecorder` warning still names Accessibility — valid, since it satisfies the tap, but Input Monitoring is the minimal grant.

@@ -23,9 +23,19 @@ USAGE:
 
 @main
 struct ZoooomrecCLI {
+    /// True when this process was launched from inside `zoooomrec.app` (Finder, `open`,
+    /// LaunchServices) rather than invoked as a terminal command.
+    private static var launchedFromAppBundle: Bool {
+        Bundle.main.bundleURL.pathExtension == "app"
+    }
+
     static func main() async {
-        let args = Array(CommandLine.arguments.dropFirst())
-        guard let subcommand = args.first else {
+        // LaunchServices historically appends a `-psn_0_12345` process-serial argument.
+        let args = Array(CommandLine.arguments.dropFirst()).filter { !$0.hasPrefix("-psn_") }
+
+        // Double-clicking the .app passes no arguments. Without this, the bundle would
+        // print usage and exit(2) the instant the user launched it.
+        guard let subcommand = args.first ?? (launchedFromAppBundle ? "app" : nil) else {
             print(usageText)
             exit(2)
         }

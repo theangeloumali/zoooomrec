@@ -33,13 +33,23 @@ swift build -c release
 
 ## Usage
 
+You built the **release** binary above, so run that same binary throughout. macOS ties every permission grant to a specific binary, so switching between the debug binary (`swift run zoooomrec …`) and the release binary (`.build/release/zoooomrec …`) forces you to re-grant Screen Recording and Input Monitoring each time.
+
 The easiest path — the menu-bar app (Start/Stop, zoom scale, reveal last recording):
 
 ```sh
-swift run zoooomrec app
+.build/release/zoooomrec app
 ```
 
 Recordings land in `~/Movies/zoooomrec/`. Or use the CLI directly.
+
+For a real, double-clickable, codesigned `zoooomrec.app` — so macOS attaches the permission grants to the app instead of your terminal — build one around the release binary with:
+
+```sh
+bash Scripts/make-app.sh
+```
+
+With a stable signing identity the grant persists across rebuilds; ad-hoc signing (the fallback) resets it each build.
 
 The fast CLI path — record until you press the stop hotkey, then auto-render:
 
@@ -74,14 +84,14 @@ While recording, drive the zoom live from the keyboard:
 | `⌃⌥X` (Control-Option-X) | Zoom out                                                           |
 | `⌃⌥S` (Control-Option-S) | Stop recording                                                     |
 
-Hotkeys require **Accessibility** permission (**System Settings → Privacy & Security → Accessibility**) in addition to Screen Recording. Without it, recording still works, but hotkeys and click-based auto-zoom fall back to cursor-follow only.
+Hotkeys and click-based auto-zoom share one listen-only event tap that needs an input-tap permission — see [Permissions](#permissions) below. Without it, recording still works, but both fall back to cursor-follow only.
 
 Zoom now feels smoother — a softer spring with a ~1s glide — and it follows the cursor while zoomed.
 
 ### Permissions
 
 - The first `record` run requires **Screen Recording** permission. macOS will prompt you (or silently deny) the first time — grant it under **System Settings → Privacy & Security → Screen Recording** for your terminal app, then re-run the command.
-- Click-driven auto-zoom works best when **Input Monitoring** is also granted (same Privacy & Security section). Without it, zoom falls back to following cursor movement only.
+- Both the ⌃⌥ zoom hotkeys and click-driven auto-zoom come from a single **listen-only** event tap. It requires **Input Monitoring** — or **Accessibility**, which is a superset that also grants input monitoring — under the same Privacy & Security section. Grant either one. Without it, zoom falls back to following cursor movement only.
 
 ## Roadmap
 

@@ -20,6 +20,21 @@ swift test
 >
 > `swift build` works fine on Command Line Tools alone. Tracked as `ZR-900` in [docs/BACKLOG.md](docs/BACKLOG.md).
 
+## End-to-end demo
+
+`bash Scripts/e2e-demo.sh` proves the whole pipeline on a REAL screen recording: it records the screen, generates on-screen activity, renders the zoomed MP4, and asserts (via ffmpeg SSIM) that the zoom actually happened. It runs two scenarios — auto-zoom from clicks, and live ⌃⌥ hotkey zoom — writing the MP4s to `recordings/`.
+
+The activity is driven by the `E2EDemo` helper executable (`Sources/E2EDemo`), which posts synthetic input via `CGEvent` and therefore needs **Accessibility** trust (posting events is an Accessibility capability, distinct from the recorder's listen-only Input Monitoring tap). Every subcommand degrades to a passive sleep when untrusted, so the script never crashes:
+
+| Subcommand                                          | What it does                                                                                                                                                                                      |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `E2EDemo drive --seconds <N>`                       | Glides the cursor around the main display and posts real left-clicks at 25% / 50% / 75% of the timeline, so the recorder captures click activity.                                                 |
+| `E2EDemo patch <bundle.zoooomrec> --min-clicks <N>` | Reads the bundle's `events.jsonl` and, if it holds fewer than `<N>` real clicks, **injects** synthetic `left_click` events at 25% / 50% / 75% of the duration so auto-zoom is guaranteed to fire. |
+| `E2EDemo hotkeys --seconds <N>`                     | Posts real ⌃⌥Z / ⌃⌥X keystrokes mid-recording to exercise the live manual-zoom path end-to-end.                                                                                                   |
+| `E2EDemo stoptest`                                  | Posts a single ⌃⌥S keystroke to exercise the live stop hotkey.                                                                                                                                    |
+
+Honest caveat: scenario 1's auto-zoom proof does not depend on the recorder capturing real clicks. The `patch` step **injects** synthetic clicks whenever fewer than three real ones were captured (e.g. on an untrusted machine or in CI), so the zoom you see may be driven by injected clicks rather than captured ones. Scenario 2's markers, by contrast, are the real ⌃⌥Z / ⌃⌥X keystrokes captured live.
+
 ## Module map
 
 The package is split into small, single-responsibility targets:

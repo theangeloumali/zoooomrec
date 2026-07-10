@@ -21,6 +21,7 @@ public enum ZoooomrecApp {
     let controller = MenuBarController()
     controller.install()
     ZoooomrecApp.controller = controller
+    app.delegate = controller  // ZR-904: refuse to abandon an in-flight take on quit
 
     app.run()
   }
